@@ -1,5 +1,6 @@
 # Reusable lint checks for Kurtosis packages. Each check is a separate job so that failures
-# are reported independently; checks are enabled through inputs.
+# are reported independently. The Kurtosis, markdown, typos and shfmt checks run by default, an
+# empty value (or `false`) turns a check off; the python check is enabled with `python_paths`.
 name: lint
 
 on:
@@ -8,11 +9,11 @@ on:
       kurtosis_version:
         description: Kurtosis CLI version used by `kurtosis lint`, empty to skip the check.
         type: string
-        default: ""
+        default: 1.23.0
       markdown_paths:
         description: Paths checked by rumdl, empty to skip the check.
         type: string
-        default: ""
+        default: .
       python_paths:
         description: Paths checked by ruff, empty to skip the check.
         type: string
@@ -28,11 +29,11 @@ on:
       typos:
         description: Run typos.
         type: boolean
-        default: false
+        default: true
       shfmt_version:
         description: shfmt release used to check shell formatting, empty to skip the check.
         type: string
-        default: ""
+        default: 3.13.1
       timeout_minutes:
         description: Timeout of each job.
         type: number

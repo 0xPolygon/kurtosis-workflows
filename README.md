@@ -33,12 +33,12 @@ passed as inputs.
 
 ## Usage
 
-Pin to a commit SHA.
+Reference a release tag (`@vX.Y.Z`), or a commit SHA for an immutable pin.
 
 ### setup-kurtosis
 
 ```yaml
-- uses: 0xPolygon/kurtosis-workflows/.github/actions/setup-kurtosis@<sha>
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/setup-kurtosis@v0.1.2
   with:
     kurtosis_version: 1.23.0
 ```
@@ -57,12 +57,12 @@ Authenticate to the registry first: the action only pulls. Images pulled through
 - run: gcloud auth configure-docker europe-west2-docker.pkg.dev
 
 # Images already rewritten with the mirror prefix.
-- uses: 0xPolygon/kurtosis-workflows/.github/actions/pull-images@<sha>
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/pull-images@v0.1.2
   with:
     images_file: modified-images.txt
 
 # Images pulled from the mirror and tagged back as listed.
-- uses: 0xPolygon/kurtosis-workflows/.github/actions/pull-images@<sha>
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/pull-images@v0.1.2
   with:
     registry_prefix: europe-west2-docker.pkg.dev/<project>/<repository>
     images: |
@@ -101,7 +101,7 @@ jobs:
       contents: read
       id-token: write
       pull-requests: read
-    uses: 0xPolygon/kurtosis-workflows/.github/workflows/version-matrix.yml@<sha>
+    uses: 0xPolygon/kurtosis-workflows/.github/workflows/version-matrix.yml@v0.1.2
     with:
       label: Kurtosis PoS version matrix
       notify: ${{ github.event_name == 'schedule' || inputs.notify }}
@@ -177,7 +177,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
-    uses: 0xPolygon/kurtosis-workflows/.github/workflows/claude.yml@<sha>
+    uses: 0xPolygon/kurtosis-workflows/.github/workflows/claude.yml@v0.1.2
     secrets:
       claude_api_key: ${{ secrets.CLAUDE_API_KEY }}
 ```
@@ -186,25 +186,33 @@ Input: `timeout_minutes` (15).
 
 ### lint
 
-Each check runs only when its input is set, so a repository enables what it uses.
+Defaults suit a Kurtosis package, so a plain call runs `kurtosis lint`, rumdl on the whole repository,
+typos and shfmt. Set an input to an empty value (or `false`) to turn a check off.
 
 ```yaml
 jobs:
   lint:
     permissions:
       contents: read
-    uses: 0xPolygon/kurtosis-workflows/.github/workflows/lint.yml@<sha>
-    with:
-      kurtosis_version: 1.23.0
-      markdown_paths: docs scripts
-      python_paths: scripts/version-matrix
-      typos: true
-      shfmt_version: 3.13.1
+    uses: 0xPolygon/kurtosis-workflows/.github/workflows/lint.yml@v0.1.2
 ```
 
-Other inputs: `python_version` (3.13), `ruff_version` (0.14.3) and `timeout_minutes` (5).
+| Input | Default | Description |
+| --- | --- | --- |
+| `kurtosis_version` | `1.23.0` | Kurtosis CLI used by `kurtosis lint`, empty to skip. |
+| `markdown_paths` | `.` | Paths checked by rumdl, empty to skip. |
+| `typos` | `true` | Run typos. |
+| `shfmt_version` | `3.13.1` | shfmt release, empty to skip. |
+| `python_paths` | `""` | Paths checked by ruff, empty to skip (off by default). |
+| `python_version` | `3.13` | Python version of the ruff check. |
+| `ruff_version` | `0.14.3` | ruff release. |
+| `timeout_minutes` | `5` | Timeout of each job. |
 
 ### docs
+
+A plain call builds the website of `docs/` on every run, runs `npm run typecheck` when the website
+defines it, and deploys to GitHub Pages on pushes to the default branch. The calling job needs the
+`pages` and `id-token` permissions.
 
 ```yaml
 jobs:
@@ -213,13 +221,15 @@ jobs:
       contents: read
       pages: write
       id-token: write
-    uses: 0xPolygon/kurtosis-workflows/.github/workflows/docs.yml@<sha>
-    with:
-      node_version: 24.22.1
-      typecheck: true
-      deploy: ${{ github.ref == 'refs/heads/main' }}
+    uses: 0xPolygon/kurtosis-workflows/.github/workflows/docs.yml@v0.1.2
 ```
 
-Other inputs: `docs_dir` (`docs`), `build_dir` (`build`, relative to `docs_dir`),
-`build_timeout_minutes` (10) and `deploy_timeout_minutes` (15). The deployment needs the `pages` and
-`id-token` permissions on the calling job.
+| Input | Default | Description |
+| --- | --- | --- |
+| `node_version` | `24.22.1` | Node.js version. |
+| `docs_dir` | `docs` | Website directory, holding `package-lock.json`. |
+| `build_dir` | `build` | Build output, relative to `docs_dir`. |
+| `typecheck` | `true` | Run `npm run typecheck` if defined. |
+| `deploy` | `true` | Deploy on pushes to the default branch, `false` to only build. |
+| `build_timeout_minutes` | `10` | Timeout of the build job. |
+| `deploy_timeout_minutes` | `15` | Timeout of the deploy job. |
