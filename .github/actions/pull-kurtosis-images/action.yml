@@ -1,0 +1,58 @@
+name: pull-kurtosis-images
+description: >-
+  Pre-pull the Docker images a Kurtosis engine needs (engine, core, files-artifacts-expander, vector,
+  traefik and the helper images) from the registry mirror, tagged back to their original names.
+
+# Registry authentication (google-github-actions/auth + gcloud auth configure-docker) stays in the
+# calling workflow, before this action.
+
+inputs:
+  kurtosis_version:
+    description: The installed Kurtosis version, i.e. the `version` output of setup-kurtosis.
+    required: true
+  registry_prefix:
+    description: Registry mirror the images are pulled from.
+    required: false
+    default: europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/virtual
+  images:
+    description: Extra images to pull from the mirror, one per line (e.g. the genesis generator).
+    required: false
+    default: ""
+  images_file:
+    description: File listing extra images to pull from the mirror, same format as `images`.
+    required: false
+    default: ""
+  skip_present:
+    description: Skip the pull of an image already present locally (e.g. restored from a cache).
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Pull kurtosis images
+      shell: bash
+      env:
+        KURTOSIS_VERSION: ${{ inputs.kurtosis_version }}
+        EXTRA_IMAGES: ${{ inputs.images }}
+        EXTRA_IMAGES_FILE: ${{ inputs.images_file }}
+        REGISTRY_PREFIX: ${{ inputs.registry_prefix }}
+        SKIP_PRESENT: ${{ inputs.skip_present }}
+      run: |
+        if [[ -z "${KURTOSIS_VERSION}" ]]; then
+          echo "::error title=pull-kurtosis-images::kurtosis_version is required"
+          exit 1
+        fi
+        list="${RUNNER_TEMP}/pull-kurtosis-images.txt"
+        {
+          printf 'kurtosistech/%s:%s\n' engine "${KURTOSIS_VERSION}" core "${KURTOSIS_VERSION}" \
+            files-artifacts-expander "${KURTOSIS_VERSION}"
+          cat "${GITHUB_ACTION_PATH}/images.txt"
+          printf '%s\n' "${EXTRA_IMAGES}"
+          if [[ -n "${EXTRA_IMAGES_FILE}" ]]; then
+            cat "${EXTRA_IMAGES_FILE}"
+          fi
+        } > "${list}"
+        # Same retry and tag-back behaviour as the pull-images action.
+        IMAGES="" IMAGES_FILE="${list}" ATTEMPTS=3 RETRY_DELAY=5 PARALLELISM=8 \
+          bash "${GITHUB_ACTION_PATH}/../pull-images/pull-images.sh"

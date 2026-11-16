@@ -15,6 +15,7 @@ inputs. Defaults cover the common setup, so callers only override what differs.
 | --- | --- |
 | [`setup-kurtosis`](.github/actions/setup-kurtosis/action.yml) | Install the Kurtosis CLI and write its CI configuration. |
 | [`pull-images`](.github/actions/pull-images/action.yml) | Pre-pull Docker images in parallel with bounded retries, optionally from a registry mirror. |
+| [`pull-kurtosis-images`](.github/actions/pull-kurtosis-images/action.yml) | Pre-pull the images a Kurtosis engine needs from the registry mirror. |
 | [`verify-package-pins`](.github/actions/verify-package-pins/action.yml) | Check that external package versions are pinned only in the `replace` block of `kurtosis.yml`. |
 | [`job-durations`](.github/actions/job-durations/action.yml) | Append a table of each job's duration in the current run to the job summary. |
 
@@ -78,6 +79,23 @@ Authenticate to the registry first: the action only pulls. Images pulled through
 
 Other inputs: `attempts` (3), `retry_delay` in seconds (5), `parallelism` (8) and
 `skip_present` (false, skips images already loaded, e.g. from a cache).
+
+### pull-kurtosis-images
+
+Same registry authentication as `pull-images`. Pulls the Kurtosis engine, core and
+files-artifacts-expander images for the installed version, plus the helper images every Kurtosis
+engine needs (vector, traefik, ...), all from the mirror and tagged back to their original names.
+`images` / `images_file` add package-specific images (e.g. the genesis generator).
+
+```yaml
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/pull-kurtosis-images@v0.1.6
+  with:
+    kurtosis_version: ${{ steps.kurtosis.outputs.version }}
+    images: |
+      ethpandaops/ethereum-genesis-generator:5.2.2
+```
+
+`registry_prefix` defaults to the Polygon Artifact Registry mirror.
 
 ### version-matrix
 
