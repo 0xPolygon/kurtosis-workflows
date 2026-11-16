@@ -38,13 +38,13 @@ on:
         type: string
         default: .claude/skills/update-version-matrix/SKILL.md
       kurtosis_version:
-        description: Kurtosis CLI installed for the bump job (for `kurtosis lint`). Leave empty to skip, e.g. when mise installs it.
+        description: Kurtosis CLI installed for the bump job (for `kurtosis lint`). Set to empty to skip, e.g. when mise installs it.
         type: string
-        default: ""
+        default: 1.23.0
       kurtosis_test_version:
-        description: kurtosis-test release (leovct/kurtosis-test, e.g. v0.0.11) installed for the bump job. Leave empty to skip, e.g. when mise installs it.
+        description: kurtosis-test release (leovct/kurtosis-test, e.g. v0.0.11) installed for the bump job. Set to empty to skip, e.g. when mise installs it.
         type: string
-        default: ""
+        default: v0.0.11
       use_mise:
         description: Install the tools pinned in the repository's mise.toml (e.g. kurtosis, kurtosis-test) for the bump job.
         type: boolean
