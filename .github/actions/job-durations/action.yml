@@ -1,0 +1,20 @@
+name: job-durations
+description: Append a table of the duration of each job of the current run to the job summary.
+
+inputs:
+  github_token:
+    description: "Token used to read the run's jobs. The calling job needs `actions: read`."
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Job durations
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        RUN_ID: ${{ github.run_id }}
+      run: |
+        # The recap is a bonus: an API error must not fail the workflow.
+        "${{ github.action_path }}/job-durations.sh" "$RUN_ID" >> "$GITHUB_STEP_SUMMARY" || echo "::warning::Could not list the job durations"

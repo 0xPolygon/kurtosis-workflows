@@ -16,6 +16,7 @@ inputs. Defaults cover the common setup, so callers only override what differs.
 | [`setup-kurtosis`](.github/actions/setup-kurtosis/action.yml) | Install the Kurtosis CLI and write its CI configuration. |
 | [`pull-images`](.github/actions/pull-images/action.yml) | Pre-pull Docker images in parallel with bounded retries, optionally from a registry mirror. |
 | [`verify-package-pins`](.github/actions/verify-package-pins/action.yml) | Check that external package versions are pinned only in the `replace` block of `kurtosis.yml`. |
+| [`job-durations`](.github/actions/job-durations/action.yml) | Append a table of each job's duration in the current run to the job summary. |
 
 ## Workflows
 
@@ -243,6 +244,14 @@ jobs:
 ```
 
 Runs offline. The repository's own package (from `GITHUB_REPOSITORY`) is never required to be pinned.
+
+### job-durations
+
+```yaml
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/job-durations@v0.1.3
+```
+
+The calling job needs `actions: read`.
 
 ### unit
 
