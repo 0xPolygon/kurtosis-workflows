@@ -38,10 +38,12 @@ Reference a release tag (`@vX.Y.Z`), or a commit SHA for an immutable pin.
 ### setup-kurtosis
 
 ```yaml
-- uses: 0xPolygon/kurtosis-workflows/.github/actions/setup-kurtosis@v0.1.2
-  with:
-    kurtosis_version: 1.23.0
+- id: kurtosis
+  uses: 0xPolygon/kurtosis-workflows/.github/actions/setup-kurtosis@v0.1.2
 ```
+
+`kurtosis_version` is optional and defaults to the version this release is tested with. The installed
+version is the `version` output, e.g. to pull the matching `kurtosistech/engine` image.
 
 ### pull-images
 
@@ -106,7 +108,6 @@ jobs:
       label: Kurtosis PoS version matrix
       notify: ${{ github.event_name == 'schedule' || inputs.notify }}
       slack_channel_id: <channel id>
-      kurtosis_version: 1.23.0
     secrets:
       claude_api_key: ${{ secrets.CLAUDE_API_KEY }}
       app_id: ${{ secrets.SEMANTIC_RELEASE_BOT_APP_ID }}
@@ -126,8 +127,8 @@ and so on, the label linking to the run.
 | `python_version` | `3.13` | Python version used to run them. |
 | `check_timeout_minutes` | `10` | Timeout of the check job. |
 | `skill_path` | `.claude/skills/update-version-matrix/SKILL.md` | Skill Claude follows to bump the pins. |
-| `kurtosis_version` | `""` | Kurtosis CLI installed for the bump job, empty to skip. |
-| `kurtosis_test_version` | `""` | kurtosis-test release installed for the bump job, empty to skip. |
+| `kurtosis_version` | `1.23.0` | Kurtosis CLI installed for the bump job, empty to skip. |
+| `kurtosis_test_version` | `v0.0.11` | kurtosis-test release installed for the bump job, empty to skip. |
 | `use_mise` | `false` | Install the tools of the repository's `mise.toml` for the bump job. |
 | `extra_allowed_tools` | `""` | Tools allowed to Claude on top of the default set (`kurtosis lint`, `kurtosis-test` and `kurtosis run --dry-run` included). |
 | `max_turns` | `60` | Maximum number of Claude turns. |

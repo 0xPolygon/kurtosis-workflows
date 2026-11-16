@@ -3,16 +3,31 @@ description: Install the Kurtosis CLI and configure it for CI.
 
 inputs:
   kurtosis_version:
-    description: The version of the Kurtosis CLI to install (e.g. 1.23.0).
-    required: true
+    description: >-
+      The version of the Kurtosis CLI to install (e.g. 1.23.0). Empty means the version this release
+      of kurtosis-workflows is tested with.
+    required: false
+    default: ""
+
+outputs:
+  version:
+    description: The installed Kurtosis version, e.g. to pull the matching engine and core images.
+    value: ${{ steps.resolve.outputs.version }}
 
 runs:
   using: composite
   steps:
+    - name: Resolve kurtosis version
+      id: resolve
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.kurtosis_version }}
+      run: echo "version=${INPUT_VERSION:-1.23.0}" >> "$GITHUB_OUTPUT"
+
     - name: Install kurtosis
       shell: bash
       env:
-        KURTOSIS_VERSION: ${{ inputs.kurtosis_version }}
+        KURTOSIS_VERSION: ${{ steps.resolve.outputs.version }}
       run: |
         echo "deb [trusted=yes] https://sdk.kurtosis.com/kurtosis-cli-release-artifacts/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
         sudo apt update
