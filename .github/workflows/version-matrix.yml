@@ -1,0 +1,388 @@
+# Checks the committed version matrix against upstream releases, opens (or refreshes) a PR
+# bumping the pins that fell behind, and posts the outcome to Slack. Merging stays manual.
+#
+# The calling repository keeps its own scripts (<scripts_dir>/extract-versions.py and
+# generate-markdown.py), its update-version-matrix skill, its schedule and its secrets.
+
+name: version-matrix
+
+on:
+  workflow_call:
+    inputs:
+      label:
+        description: Name of the matrix in the Slack message, e.g. "Kurtosis CDK version matrix".
+        type: string
+        required: true
+      notify:
+        description: Post the outcome to Slack. Callers usually pass `github.event_name == 'schedule' || inputs.notify`.
+        type: boolean
+        default: false
+      slack_channel_id:
+        description: Slack channel the outcome is posted to. Required when notify is true.
+        type: string
+        default: ""
+      scripts_dir:
+        description: Directory holding requirements.txt, extract-versions.py and generate-markdown.py.
+        type: string
+        default: scripts/version-matrix
+      python_version:
+        description: Python version used to run the scripts.
+        type: string
+        default: "3.13"
+      check_timeout_minutes:
+        description: Timeout of the check job.
+        type: number
+        default: 10
+      skill_path:
+        description: Skill Claude follows, in CI mode, to bump the drifted pins.
+        type: string
+        default: .claude/skills/update-version-matrix/SKILL.md
+      kurtosis_version:
+        description: Kurtosis CLI installed for the bump job (for `kurtosis lint`). Leave empty to skip, e.g. when mise installs it.
+        type: string
+        default: ""
+      use_mise:
+        description: Install the tools pinned in the repository's mise.toml (e.g. kurtosis, kurtosis-test) for the bump job.
+        type: boolean
+        default: false
+      extra_allowed_tools:
+        description: Comma-separated tools allowed to Claude on top of the default set, e.g. "Bash(kurtosis-test:*)".
+        type: string
+        default: ""
+      max_turns:
+        description: Maximum number of Claude turns in the bump job.
+        type: number
+        default: 60
+      bump_timeout_minutes:
+        description: Timeout of the bump job.
+        type: number
+        default: 30
+      base_branch:
+        description: Branch the bump PR targets. The bump job only runs when the workflow runs on it.
+        type: string
+        default: main
+      pr_branch:
+        description: Head branch of the bump PR.
+        type: string
+        default: chore/bump-version-matrix
+      add_paths:
+        description: Pathspecs committed in the bump PR (newline-separated).
+        type: string
+        default: |
+          .
+          :!.github/workflows
+          :!.claude
+    secrets:
+      read_token:
+        description: Token used by extract-versions.py to query the GitHub API. Defaults to the workflow token.
+        required: false
+      claude_api_key:
+        description: Anthropic API key used by the bump job.
+        required: true
+      app_id:
+        description: ID of the GitHub App that opens the bump PR (its token, unlike GITHUB_TOKEN, triggers CI).
+        required: true
+      app_private_key:
+        description: Private key of that GitHub App.
+        required: true
+      slack_bot_token:
+        description: Slack bot token. Required when notify is true.
+        required: false
+    outputs:
+      outdated:
+        description: true or false; empty when the check failed before it could compare the matrix.
+        value: ${{ jobs.check-version-matrix.outputs.outdated }}
+      pr-operation:
+        description: created, updated or none; empty when nothing was bumped.
+        value: ${{ jobs.bump-version-matrix.outputs.pr-operation }}
+      pr-url:
+        description: URL of the open bump PR, empty when there is none.
+        value: ${{ jobs.bump-version-matrix.outputs.pr-url }}
+
+permissions: {}
+
+jobs:
+  # An upstream release is not a failure of the calling repository: the job reports the drift
+  # and hands it to bump-version-matrix instead of failing the workflow.
+  check-version-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.check_timeout_minutes }}
+    permissions:
+      contents: read
+    outputs:
+      # Empty when an earlier step failed before the comparison ran: the summary reports that
+      # as "unknown" rather than as "up to date".
+      outdated: ${{ steps.check.outputs.outdated }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Install dependencies
+        env:
+          SCRIPTS_DIR: ${{ inputs.scripts_dir }}
+        run: pip install -r "${SCRIPTS_DIR}/requirements.txt"
+
+      - name: Generate version matrix
+        env:
+          GITHUB_TOKEN: ${{ secrets.read_token || github.token }}
+          SCRIPTS_DIR: ${{ inputs.scripts_dir }}
+        run: python3 "${SCRIPTS_DIR}/extract-versions.py"
+
+      - name: Generate markdown documentation
+        env:
+          SCRIPTS_DIR: ${{ inputs.scripts_dir }}
+        run: python3 "${SCRIPTS_DIR}/generate-markdown.py"
+
+      - name: Check the committed matrix is up to date
+        id: check
+        env:
+          SCRIPTS_DIR: ${{ inputs.scripts_dir }}
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "outdated=true" >> "$GITHUB_OUTPUT"
+            echo "::warning title=version-matrix::Version matrix is outdated, see ${SCRIPTS_DIR}."
+            git diff --stat
+            git diff
+            exit 0
+          fi
+          echo "outdated=false" >> "$GITHUB_OUTPUT"
+          echo "Version matrix is up to date"
+
+  bump-version-matrix:
+    needs: check-version-matrix
+    # Off the base branch, the bump PR would also carry the dispatching branch's commits.
+    if: needs.check-version-matrix.outputs.outdated == 'true' && github.ref == format('refs/heads/{0}', inputs.base_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.bump_timeout_minutes }}
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: read
+    concurrency:
+      group: bump-version-matrix
+      cancel-in-progress: false
+    outputs:
+      pr-operation: ${{ steps.pr.outputs.pull-request-operation }}
+      pr-url: ${{ steps.find-pr.outputs.url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Install dependencies
+        env:
+          SCRIPTS_DIR: ${{ inputs.scripts_dir }}
+        run: pip install -r "${SCRIPTS_DIR}/requirements.txt"
+
+      # Pinned to a commit of this repository: a reusable workflow cannot reference its own
+      # actions with a local path, which would resolve against the caller's checkout.
+      - name: Install kurtosis
+        if: inputs.kurtosis_version != ''
+        uses: 0xPolygon/kurtosis-workflows/.github/actions/setup-kurtosis@801e725a21f3f2ee430115f0786e599ca29b0d19
+        with:
+          kurtosis_version: ${{ inputs.kurtosis_version }}
+
+      - name: Install mise tools
+        if: inputs.use_mise
+        uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+
+      - name: Bump pins
+        id: claude
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        uses: anthropics/claude-code-action@61a9c274fa7110a66dfafc1bbbced03833eb25fe # v1.0.269
+        with:
+          anthropic_api_key: ${{ secrets.claude_api_key }}
+          # Read-only: the PR is opened below with the app's token.
+          github_token: ${{ github.token }}
+          prompt: |
+            Read ${{ inputs.skill_path }} and follow it in CI mode
+            for ${{ github.repository }}: regenerate the matrix to find the drift and bump
+            what is behind. Return the PR title and body, or an empty title if
+            nothing was bumped. List every drifted row in `bumped` or `skipped`.
+            Run each shell command as its own call, with no pipe, `;`, `&&`, `$(...)` or
+            env prefix: compound commands are denied.
+          claude_args: |
+            --max-turns ${{ inputs.max_turns }}
+            --allowedTools "Read,Edit,Write,Grep,Glob,Bash(python3 ${{ inputs.scripts_dir }}/*),Bash(docker manifest inspect:*),Bash(git diff:*),Bash(git status:*),Bash(kurtosis lint:*)${{ inputs.extra_allowed_tools != '' && format(',{0}', inputs.extra_allowed_tools) || '' }}"
+            --json-schema '{"type":"object","properties":{"title":{"type":"string"},"body":{"type":"string"},"bumped":{"type":"array","items":{"type":"object","properties":{"component":{"type":"string","pattern":"^[A-Za-z0-9._/-]{1,64}$"},"from":{"type":"string","pattern":"^[A-Za-z0-9._+-]{1,64}$"},"to":{"type":"string","pattern":"^[A-Za-z0-9._+-]{1,64}$"}},"required":["component","from","to"],"additionalProperties":false}},"skipped":{"type":"array","items":{"type":"object","properties":{"component":{"type":"string","pattern":"^[A-Za-z0-9._/-]{1,64}$"},"from":{"type":"string","pattern":"^[A-Za-z0-9._+-]{1,64}$"},"to":{"type":"string","pattern":"^[A-Za-z0-9._+-]{1,64}$"},"reason":{"enum":["pinned","pre-release","unpublished","other"]}},"required":["component","from","to","reason"],"additionalProperties":false}}},"required":["title","body"]}'
+
+      # A GitHub App token, unlike GITHUB_TOKEN, lets the PR trigger CI.
+      - name: Get app token
+        id: app-token
+        if: fromJSON(steps.claude.outputs.structured_output || '{"title":""}').title != ''
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.app_id }}
+          private-key: ${{ secrets.app_private_key }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Open or update the PR
+        id: pr
+        if: steps.app-token.outcome == 'success'
+        uses: peter-evans/create-pull-request@15733dbdfeedb4f7fdb73d13c6f5ac83b710fab8 # v8.1.2
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          sign-commits: true
+          base: ${{ inputs.base_branch }}
+          branch: ${{ inputs.pr_branch }}
+          delete-branch: true
+          add-paths: ${{ inputs.add_paths }}
+          commit-message: ${{ fromJSON(steps.claude.outputs.structured_output).title }}
+          title: ${{ fromJSON(steps.claude.outputs.structured_output).title }}
+          body: ${{ fromJSON(steps.claude.outputs.structured_output).body }}
+
+      # Looked up rather than read from the step above, which is skipped when nothing new was
+      # bumped while an earlier bump PR is still open.
+      - name: Find the open bump PR
+        id: find-pr
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_BRANCH: ${{ inputs.pr_branch }}
+        run: |
+          url=$(gh pr list --repo "$REPOSITORY" --head "$PR_BRANCH" --state open --json url --jq '.[0].url // ""')
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      # The job log hides Claude's transcript, so the run summary is the only record of what was
+      # bumped or skipped and why. It is public: it is built from the schema-constrained fields
+      # only, re-checked here, never from Claude's free text. Patterns end in \z: in jq, $ also
+      # matches before a trailing newline, which would break the table row.
+      - name: Write the run summary
+        if: ${{ !cancelled() }}
+        env:
+          OUTPUT: ${{ steps.claude.outputs.structured_output }}
+          CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
+          PR_OPERATION: ${{ steps.pr.outputs.pull-request-operation }}
+          PR_URL: ${{ steps.find-pr.outputs.url }}
+        run: |
+          jq -nr --arg outcome "$CLAUDE_OUTCOME" --arg op "$PR_OPERATION" --arg url "$PR_URL" '
+            def ok($re): type == "string" and test($re);
+            def valid: (.component | ok("^[A-Za-z0-9._/-]{1,64}\\z"))
+              and (.from | ok("^[A-Za-z0-9._+-]{1,64}\\z"))
+              and (.to | ok("^[A-Za-z0-9._+-]{1,64}\\z"));
+            (((env.OUTPUT | try fromjson catch null) | objects) // {}) as $out
+            | def rows($k): [$out[$k] | arrays | .[]];
+            [rows("bumped")[] | objects | select(valid)] as $bumped
+            | [rows("skipped")[] | objects
+                | select(valid and (.reason | IN("pinned", "pre-release", "unpublished", "other")))] as $skipped
+            | ((rows("bumped") + rows("skipped") | length) - ($bumped + $skipped | length)) as $dropped
+            | "## Version matrix bump", "",
+              (if $outcome != "success" then
+                "Claude did not finish (step \($outcome)): nothing was bumped."
+              elif ($bumped | length) == 0 then
+                "Nothing bumped." + (if $url != "" then " A previous bump PR is still open: \($url)" else "" end)
+              elif $op == "created" or $op == "updated" then
+                "Bump PR \($op): \($url)"
+              else
+                "Bumps match the open PR, left unchanged: \($url)"
+              end),
+              "",
+              "### Bumped", "",
+              (if ($bumped | length) == 0 then "None." else
+                "| Component | From | To |", "| --- | --- | --- |",
+                ($bumped[] | "| \(.component) | \(.from) | \(.to) |")
+              end),
+              "",
+              "### Skipped", "",
+              (if ($skipped | length) == 0 then "None." else
+                "| Component | Current | Latest | Reason |", "| --- | --- | --- | --- |",
+                ($skipped[] | "| \(.component) | \(.from) | \(.to) | \(.reason) |")
+              end),
+              (if $dropped > 0 then "", "\($dropped) row(s) dropped: not in the expected format." else empty end)
+          ' >> "$GITHUB_STEP_SUMMARY"
+
+  workflow-summary:
+    needs:
+      - check-version-matrix
+      - bump-version-matrix
+    if: ${{ always() && inputs.notify }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    steps:
+      # bump-version-matrix is skipped whenever the matrix is up to date, so its result is
+      # reported with the matrix status below.
+      - name: Build the Slack message
+        id: message
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LABEL: ${{ inputs.label }}
+          BASE_BRANCH: ${{ inputs.base_branch }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          JOBS_API: repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}/jobs
+          OUTDATED: ${{ needs.check-version-matrix.outputs.outdated }}
+          BUMP_RESULT: ${{ needs.bump-version-matrix.result }}
+          PR_OPERATION: ${{ needs.bump-version-matrix.outputs.pr-operation }}
+          PR_URL: ${{ needs.bump-version-matrix.outputs.pr-url }}
+        run: |
+          # Links are a bonus: an API error must not cost the Slack message.
+          jobs=$(gh api --paginate "$JOBS_API" --jq '.jobs[]') || jobs=""
+
+          # Slack link to the job named $1, labelled $2. Called from another workflow, the run
+          # lists it as "<caller job> / $1".
+          job_link() {
+            local url
+            url=$(jq -rs --arg j "$1" 'map(select(.name == $j or (.name | endswith(" / " + $j))))[0].html_url // ""' <<< "$jobs")
+            if [[ -n "$url" ]]; then echo "<$url|$2>"; else echo "$2"; fi
+          }
+
+          pr="<$PR_URL|#${PR_URL##*/}>"
+          if [[ "$OUTDATED" == false ]]; then
+            matrix="up to date ✅"
+          elif [[ "$OUTDATED" != true ]]; then
+            matrix="unknown ⚠️, the $(job_link check-version-matrix 'check job') failed before it could compare the matrix"
+          elif [[ "$PR_OPERATION" == created ]]; then
+            matrix="outdated ❌, bump PR opened: $pr"
+          elif [[ "$PR_OPERATION" == updated ]]; then
+            matrix="outdated ❌, bump PR refreshed: $pr"
+          elif [[ "$BUMP_RESULT" == skipped ]]; then
+            matrix="outdated ❌, not bumped: bump PRs are only opened from $BASE_BRANCH"
+          elif [[ "$BUMP_RESULT" != success ]]; then
+            matrix="outdated ❌, the $(job_link bump-version-matrix 'bump job') failed"
+          elif [[ -n "$PR_URL" ]]; then
+            matrix="outdated ❌, nothing new to bump, $pr is still open"
+          else
+            matrix="outdated ❌, nothing to bump (pinned, pre-release or unpublished), see the $(job_link check-version-matrix drift)"
+          fi
+
+          echo "text=<$RUN_URL|$LABEL>: $matrix" >> "$GITHUB_OUTPUT"
+
+      - name: Check the Slack settings
+        env:
+          SLACK_CHANNEL_ID: ${{ inputs.slack_channel_id }}
+          HAS_SLACK_TOKEN: ${{ secrets.slack_bot_token != '' }}
+        run: |
+          if [[ -z "$SLACK_CHANNEL_ID" || "$HAS_SLACK_TOKEN" != true ]]; then
+            echo "::error title=version-matrix::notify needs the slack_channel_id input and the slack_bot_token secret."
+            exit 1
+          fi
+
+      - uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
+        with:
+          token: ${{ secrets.slack_bot_token }}
+          method: chat.postMessage
+          payload: |
+            {
+              "channel": ${{ toJSON(inputs.slack_channel_id) }},
+              "text": ${{ toJSON(inputs.label) }},
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ${{ toJSON(steps.message.outputs.text) }}
+                  }
+                }
+              ]
+            }
