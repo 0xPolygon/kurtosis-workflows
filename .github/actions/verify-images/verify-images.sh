@@ -13,19 +13,19 @@ status=0
 check_listed() {
   local label="$1" url="$2" pattern="$3" content expected listed
   if ! content=$(curl -fsSL --retry 3 "${url}"); then
-    echo "::warning title=check-pull-images::Could not fetch ${url}, skipping the ${label} check."
+    echo "::warning title=verify-images::Could not fetch ${url}, skipping the ${label} check."
     return 0
   fi
   expected=$(grep -oE "${pattern}" <<< "${content}" | head -n 1 || true)
   if [[ -z "${expected}" ]]; then
-    echo "::warning title=check-pull-images::No ${label} image found in ${url}."
+    echo "::warning title=verify-images::No ${label} image found in ${url}."
     return 0
   fi
   if grep -qxF "${expected}" "${images}"; then
     echo "${label}: ${expected} is listed."
   else
     listed=$(grep -F "${expected%%:*}" "${images}" || echo "none")
-    echo "::error title=check-pull-images::${label} uses ${expected} but pull-kurtosis-images lists ${listed}. Bump images.txt in kurtosis-workflows and this repository's reference to it."
+    echo "::error title=verify-images::${label} uses ${expected} but pull-kurtosis-images lists ${listed}. Bump images.txt in kurtosis-workflows and this repository's reference to it."
     status=1
   fi
 }

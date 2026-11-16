@@ -17,6 +17,7 @@ inputs. Defaults cover the common setup, so callers only override what differs.
 | [`pull-images`](.github/actions/pull-images/action.yml) | Pre-pull Docker images in parallel with bounded retries, optionally from a registry mirror. |
 | [`pull-kurtosis-images`](.github/actions/pull-kurtosis-images/action.yml) | Pre-pull the images a Kurtosis engine needs from the registry mirror. |
 | [`verify-package-pins`](.github/actions/verify-package-pins/action.yml) | Check that external package versions are pinned only in the `replace` block of `kurtosis.yml`. |
+| [`verify-images`](.github/actions/verify-images/action.yml) | Check that the images pre-pulled by `pull-kurtosis-images` match what Kurtosis and ethereum-package pull. |
 | [`job-durations`](.github/actions/job-durations/action.yml) | Append a table of each job's duration in the current run to the job summary. |
 
 ## Workflows
@@ -263,11 +264,18 @@ jobs:
 
 The repository's own package (from `GITHUB_REPOSITORY`) is never required to be pinned.
 
-Also fails when an image listed by `pull-kurtosis-images` differs from the one upstream pulls at
-the pinned version: vector, traefik and alpine from the Kurtosis version `setup-kurtosis` installs by
-default, and `ethereum-genesis-generator` from the `ethereum-package` commit pinned in `kurtosis.yml`
-(fetched from GitHub; a failed fetch only warns). A bump of either therefore needs a matching
-`images.txt` update released here first.
+### verify-images
+
+```yaml
+- uses: actions/checkout@v7
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/verify-images@v0.1.6
+```
+
+Fails when an image listed by `pull-kurtosis-images` differs from the one upstream pulls at the
+pinned version: vector, traefik and alpine from the Kurtosis version `setup-kurtosis` installs by
+default, and `ethereum-genesis-generator` from the `ethereum-package` commit pinned in
+`kurtosis.yml`. Upstream files are fetched from GitHub; a failed fetch only warns. A bump of either
+therefore needs a matching `images.txt` update released here first.
 
 ### job-durations
 

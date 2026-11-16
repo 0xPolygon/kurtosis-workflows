@@ -11,7 +11,3 @@ runs:
     - name: Verify external package pins
       shell: bash
       run: python3 "${{ github.action_path }}/verify-package-pins.py"
-
-    - name: Check the pre-pulled genesis generator matches ethereum-package
-      shell: bash
-      run: bash "${GITHUB_ACTION_PATH}/check-pull-images.sh"
