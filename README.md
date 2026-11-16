@@ -45,7 +45,7 @@ Reference a release tag (`@vX.Y.Z`), or a commit SHA for an immutable pin.
 
 ```yaml
 - id: kurtosis
-  uses: 0xPolygon/kurtosis-workflows/.github/actions/setup-kurtosis@v0.1.2
+  uses: 0xPolygon/kurtosis-workflows/.github/actions/setup-kurtosis@v0.1.5
 ```
 
 `kurtosis_version` is optional and defaults to the version this release is tested with. The installed
@@ -65,12 +65,12 @@ Authenticate to the registry first: the action only pulls. Images pulled through
 - run: gcloud auth configure-docker europe-west2-docker.pkg.dev
 
 # Images already rewritten with the mirror prefix.
-- uses: 0xPolygon/kurtosis-workflows/.github/actions/pull-images@v0.1.2
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/pull-images@v0.1.5
   with:
     images_file: modified-images.txt
 
 # Images pulled from the mirror and tagged back as listed.
-- uses: 0xPolygon/kurtosis-workflows/.github/actions/pull-images@v0.1.2
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/pull-images@v0.1.5
   with:
     registry_prefix: europe-west2-docker.pkg.dev/<project>/<repository>
     images: |
@@ -91,7 +91,7 @@ ethereum-package commit the Kurtosis packages pin: bump it with them. `images` /
 package-specific images.
 
 ```yaml
-- uses: 0xPolygon/kurtosis-workflows/.github/actions/pull-kurtosis-images@v0.1.6
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/pull-kurtosis-images@v0.1.5
   with:
     kurtosis_version: ${{ steps.kurtosis.outputs.version }}
 ```
@@ -126,7 +126,7 @@ jobs:
       contents: read
       id-token: write
       pull-requests: read
-    uses: 0xPolygon/kurtosis-workflows/.github/workflows/version-matrix.yml@v0.1.2
+    uses: 0xPolygon/kurtosis-workflows/.github/workflows/version-matrix.yml@v0.1.5
     secrets:
       claude_api_key: ${{ secrets.CLAUDE_API_KEY }}
       app_id: ${{ secrets.SEMANTIC_RELEASE_BOT_APP_ID }}
@@ -198,7 +198,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
-    uses: 0xPolygon/kurtosis-workflows/.github/workflows/claude.yml@v0.1.2
+    uses: 0xPolygon/kurtosis-workflows/.github/workflows/claude.yml@v0.1.5
     secrets:
       claude_api_key: ${{ secrets.CLAUDE_API_KEY }}
 ```
@@ -215,7 +215,7 @@ jobs:
   lint:
     permissions:
       contents: read
-    uses: 0xPolygon/kurtosis-workflows/.github/workflows/lint.yml@v0.1.2
+    uses: 0xPolygon/kurtosis-workflows/.github/workflows/lint.yml@v0.1.5
 ```
 
 | Input | Default | Description |
@@ -242,7 +242,7 @@ jobs:
       contents: read
       pages: write
       id-token: write
-    uses: 0xPolygon/kurtosis-workflows/.github/workflows/docs.yml@v0.1.2
+    uses: 0xPolygon/kurtosis-workflows/.github/workflows/docs.yml@v0.1.5
 ```
 
 | Input | Default | Description |
@@ -259,7 +259,7 @@ jobs:
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: 0xPolygon/kurtosis-workflows/.github/actions/verify-package-pins@v0.1.3
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/verify-package-pins@v0.1.5
 ```
 
 The repository's own package (from `GITHUB_REPOSITORY`) is never required to be pinned.
@@ -268,7 +268,7 @@ The repository's own package (from `GITHUB_REPOSITORY`) is never required to be 
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: 0xPolygon/kurtosis-workflows/.github/actions/verify-images@v0.1.6
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/verify-images@v0.1.5
 ```
 
 Fails when an image listed by `pull-kurtosis-images` differs from the one upstream pulls at the
@@ -280,7 +280,7 @@ therefore needs a matching `images.txt` update released here first.
 ### job-durations
 
 ```yaml
-- uses: 0xPolygon/kurtosis-workflows/.github/actions/job-durations@v0.1.3
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/job-durations@v0.1.5
 ```
 
 The calling job needs `actions: read`.
@@ -292,7 +292,7 @@ jobs:
   unit:
     permissions:
       contents: read
-    uses: 0xPolygon/kurtosis-workflows/.github/workflows/unit.yml@v0.1.3
+    uses: 0xPolygon/kurtosis-workflows/.github/workflows/unit.yml@v0.1.5
 ```
 
 | Input | Default | Description |
@@ -310,7 +310,7 @@ jobs:
     needs: [build, test]
     permissions:
       actions: read
-    uses: 0xPolygon/kurtosis-workflows/.github/workflows/workflow-summary.yml@v0.1.3
+    uses: 0xPolygon/kurtosis-workflows/.github/workflows/workflow-summary.yml@v0.1.5
     with:
       name: Kurtosis CDK Nightly
       needs: ${{ toJSON(needs) }}
