@@ -25,6 +25,7 @@ inputs. Defaults cover the common setup, so callers only override what differs.
 | [`claude`](.github/workflows/claude.yml) | Answer `@claude` mentions in issues and PRs, and submit PR reviews. |
 | [`lint`](.github/workflows/lint.yml) | Run `kurtosis lint`, rumdl, ruff, typos and shfmt, each as an opt-in job. |
 | [`unit`](.github/workflows/unit.yml) | Run the unit tests of a package with `kurtosis-test`. |
+| [`workflow-summary`](.github/workflows/workflow-summary.yml) | Post a one-line Slack recap of a run, linking the failed jobs. |
 | [`docs`](.github/workflows/docs.yml) | Build an npm website and optionally deploy it to GitHub Pages. |
 
 ## Templates
@@ -258,3 +259,27 @@ jobs:
 | `kurtosis_test_version` | `v0.0.11` | kurtosis-test release. |
 | `path` | `.` | Path of the package to test. |
 | `timeout_minutes` | `10` | Timeout of the job. |
+
+### workflow-summary
+
+```yaml
+jobs:
+  workflow-summary:
+    if: always() && github.event_name == 'schedule'
+    needs: [build, test]
+    permissions:
+      actions: read
+    uses: 0xPolygon/kurtosis-workflows/.github/workflows/workflow-summary.yml@v0.1.3
+    with:
+      name: Kurtosis CDK Nightly
+      needs: ${{ toJSON(needs) }}
+    secrets:
+      slack_bot_token: ${{ secrets.SLACK_BOT_TOKEN }}
+```
+
+| Input | Default | Description |
+| --- | --- | --- |
+| `name` | required | Name shown in the message. |
+| `needs` | required | `toJSON(needs)` of the calling job. |
+| `slack_channel_id` | `C04DS0SG599` | Slack channel. |
+| `success_text`, `failure_text`, `skipped_text` | "all tests passed ✅", … | Status wording. |
