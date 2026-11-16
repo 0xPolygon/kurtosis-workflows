@@ -15,7 +15,9 @@ inputs. Defaults cover the common setup, so callers only override what differs.
 | --- | --- |
 | [`setup-kurtosis`](.github/actions/setup-kurtosis/action.yml) | Install the Kurtosis CLI and write its CI configuration. |
 | [`pull-images`](.github/actions/pull-images/action.yml) | Pre-pull Docker images in parallel with bounded retries, optionally from a registry mirror. |
+| [`pull-kurtosis-images`](.github/actions/pull-kurtosis-images/action.yml) | Pre-pull the images a Kurtosis engine needs from the registry mirror. |
 | [`verify-package-pins`](.github/actions/verify-package-pins/action.yml) | Check that external package versions are pinned only in the `replace` block of `kurtosis.yml`. |
+| [`verify-images`](.github/actions/verify-images/action.yml) | Check that the images pre-pulled by `pull-kurtosis-images` match what Kurtosis and ethereum-package pull. |
 | [`job-durations`](.github/actions/job-durations/action.yml) | Append a table of each job's duration in the current run to the job summary. |
 
 ## Workflows
@@ -78,6 +80,23 @@ Authenticate to the registry first: the action only pulls. Images pulled through
 
 Other inputs: `attempts` (3), `retry_delay` in seconds (5), `parallelism` (8) and
 `skip_present` (false, skips images already loaded, e.g. from a cache).
+
+### pull-kurtosis-images
+
+Same registry authentication as `pull-images`. Pulls the Kurtosis engine, core and
+files-artifacts-expander images for the installed version, plus the helper images every Kurtosis
+engine needs (vector, traefik, the ethereum-package genesis generator, deployment-utils, ...), all
+from the mirror and tagged back to their original names. The genesis generator version follows the
+ethereum-package commit the Kurtosis packages pin: bump it with them. `images` / `images_file` add
+package-specific images.
+
+```yaml
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/pull-kurtosis-images@v0.1.6
+  with:
+    kurtosis_version: ${{ steps.kurtosis.outputs.version }}
+```
+
+`registry_prefix` defaults to the Polygon Artifact Registry mirror.
 
 ### version-matrix
 
@@ -243,7 +262,20 @@ jobs:
 - uses: 0xPolygon/kurtosis-workflows/.github/actions/verify-package-pins@v0.1.3
 ```
 
-Runs offline. The repository's own package (from `GITHUB_REPOSITORY`) is never required to be pinned.
+The repository's own package (from `GITHUB_REPOSITORY`) is never required to be pinned.
+
+### verify-images
+
+```yaml
+- uses: actions/checkout@v7
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/verify-images@v0.1.6
+```
+
+Fails when an image listed by `pull-kurtosis-images` differs from the one upstream pulls at the
+pinned version: vector, traefik and alpine from the Kurtosis version `setup-kurtosis` installs by
+default, and `ethereum-genesis-generator` from the `ethereum-package` commit pinned in
+`kurtosis.yml`. Upstream files are fetched from GitHub; a failed fetch only warns. A bump of either
+therefore needs a matching `images.txt` update released here first.
 
 ### job-durations
 

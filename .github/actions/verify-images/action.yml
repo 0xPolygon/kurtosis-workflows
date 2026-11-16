@@ -1,0 +1,11 @@
+name: verify-images
+description: >-
+  Check that the images pre-pulled by pull-kurtosis-images match the ones the pinned Kurtosis version
+  and ethereum-package commit actually pull.
+
+runs:
+  using: composite
+  steps:
+    - name: Verify pre-pulled images
+      shell: bash
+      run: bash "${GITHUB_ACTION_PATH}/verify-images.sh"
