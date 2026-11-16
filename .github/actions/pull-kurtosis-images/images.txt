@@ -1,6 +1,6 @@
 timberio/vector:0.45.0-debian
 traefik:v2.11.62
-alpine:3.17
+alpine:3.24
 badouralix/curl-jq:latest
 protolambda/eth2-val-tools:latest
 ethpandaops/ethereum-genesis-generator:6.2.9

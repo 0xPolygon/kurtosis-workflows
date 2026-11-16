@@ -263,9 +263,11 @@ jobs:
 
 The repository's own package (from `GITHUB_REPOSITORY`) is never required to be pinned.
 
-Also fails when the `ethereum-genesis-generator` image listed by `pull-kurtosis-images` differs from
-the one the pinned `ethereum-package` commit uses (fetched from GitHub; a failed fetch only warns).
-A bump of `ethereum-package` therefore needs a matching `images.txt` update released here first.
+Also fails when an image listed by `pull-kurtosis-images` differs from the one upstream pulls at
+the pinned version: vector, traefik and alpine from the Kurtosis version `setup-kurtosis` installs by
+default, and `ethereum-genesis-generator` from the `ethereum-package` commit pinned in `kurtosis.yml`
+(fetched from GitHub; a failed fetch only warns). A bump of either therefore needs a matching
+`images.txt` update released here first.
 
 ### job-durations
 
