@@ -205,7 +205,7 @@ jobs:
 | `markdown_paths` | `.` | Paths checked by rumdl, empty to skip. |
 | `typos` | `true` | Run typos. |
 | `shfmt_version` | `3.13.1` | shfmt release, empty to skip. |
-| `python_paths` | `""` | Paths checked by ruff, empty to skip (off by default). |
+| `python_paths` | `.` | Paths checked by ruff, empty to skip. Skipped automatically without Python files. |
 | `python_version` | `3.13` | Python version of the ruff check. |
 | `ruff_version` | `0.14.3` | ruff release. |
 | `timeout_minutes` | `5` | Timeout of each job. |
