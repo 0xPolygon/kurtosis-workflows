@@ -10,4 +10,4 @@ runs:
 
     - name: Verify external package pins
       shell: bash
-      run: python3 "${{ github.action_path }}/verify-package-pins.py"
+      run: python3 "${GITHUB_ACTION_PATH}/verify-package-pins.py"
