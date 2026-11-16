@@ -14,6 +14,7 @@ passed as inputs.
 | Action | Description |
 | --- | --- |
 | [`setup-kurtosis`](.github/actions/setup-kurtosis/action.yml) | Install the Kurtosis CLI and write its CI configuration. |
+| [`pull-images`](.github/actions/pull-images/action.yml) | Pre-pull Docker images in parallel with bounded retries, optionally from a registry mirror. |
 
 ## Workflows
 
@@ -32,6 +33,36 @@ Pin to a commit SHA.
   with:
     kurtosis_version: 1.23.0
 ```
+
+### pull-images
+
+Authenticate to the registry first: the action only pulls. Images pulled through
+`registry_prefix` are tagged back to their original names (except digest-pinned ones).
+
+```yaml
+- uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+  with:
+    workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+    service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+- run: gcloud auth configure-docker europe-west2-docker.pkg.dev
+
+# Images already rewritten with the mirror prefix.
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/pull-images@<sha>
+  with:
+    images_file: modified-images.txt
+
+# Images pulled from the mirror and tagged back as listed.
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/pull-images@<sha>
+  with:
+    registry_prefix: europe-west2-docker.pkg.dev/<project>/<repository>
+    images: |
+      kurtosistech/engine:1.23.0
+      kurtosistech/core:1.23.0
+```
+
+Other inputs: `attempts` (3), `retry_delay` in seconds (5), `parallelism` (8) and
+`skip_present` (false, skips images already loaded, e.g. from a cache).
 
 ### version-matrix
 

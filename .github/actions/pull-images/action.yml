@@ -1,0 +1,54 @@
+name: pull-images
+description: >-
+  Pre-pull Docker images in parallel, retrying each pull a bounded number of times, optionally from
+  a registry mirror whose copies are tagged back to their original names.
+
+# Registry authentication (e.g. google-github-actions/auth + gcloud auth configure-docker) stays in
+# the calling workflow, before this action.
+
+inputs:
+  images:
+    description: "Images to pull, one per line. Blank lines and lines starting with # are ignored."
+    required: false
+    default: ""
+  images_file:
+    description: File listing images to pull, same format as `images`. Both inputs can be combined.
+    required: false
+    default: ""
+  registry_prefix:
+    description: >-
+      When set, each image is pulled as <registry_prefix>/<image> and tagged back as <image>, unless
+      it is pinned by digest (Docker cannot create such a tag). Leave empty to pull the images as listed.
+    required: false
+    default: ""
+  attempts:
+    description: Pull attempts per image before the step fails.
+    required: false
+    default: "3"
+  retry_delay:
+    description: Seconds to wait between two attempts.
+    required: false
+    default: "5"
+  parallelism:
+    description: Number of images pulled at the same time.
+    required: false
+    default: "8"
+  skip_present:
+    description: Skip the pull of an image already present locally (e.g. restored from a cache).
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Pull images
+      shell: bash
+      env:
+        IMAGES: ${{ inputs.images }}
+        IMAGES_FILE: ${{ inputs.images_file }}
+        REGISTRY_PREFIX: ${{ inputs.registry_prefix }}
+        ATTEMPTS: ${{ inputs.attempts }}
+        RETRY_DELAY: ${{ inputs.retry_delay }}
+        PARALLELISM: ${{ inputs.parallelism }}
+        SKIP_PRESENT: ${{ inputs.skip_present }}
+      run: bash "${GITHUB_ACTION_PATH}/pull-images.sh"
