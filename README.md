@@ -6,8 +6,8 @@ Shared GitHub Actions and reusable workflows for the Kurtosis repositories
 [optimism-package](https://github.com/agglayer/optimism-package)).
 
 This repository must not contain secrets. Credentials and environment-specific identifiers (GCP
-workload identity provider, service account, Slack channel) stay in the calling repository and are
-passed as inputs.
+workload identity provider, service account) stay in the calling repository and are passed as
+inputs. Defaults cover the common setup, so callers only override what differs.
 
 ## Actions
 
@@ -104,10 +104,6 @@ jobs:
       id-token: write
       pull-requests: read
     uses: 0xPolygon/kurtosis-workflows/.github/workflows/version-matrix.yml@v0.1.2
-    with:
-      label: Kurtosis PoS version matrix
-      notify: ${{ github.event_name == 'schedule' || inputs.notify }}
-      slack_channel_id: <channel id>
     secrets:
       claude_api_key: ${{ secrets.CLAUDE_API_KEY }}
       app_id: ${{ secrets.SEMANTIC_RELEASE_BOT_APP_ID }}
@@ -115,17 +111,18 @@ jobs:
       slack_bot_token: ${{ secrets.SLACK_BOT_TOKEN }}
 ```
 
-The Slack message reads `<label>: up to date ✅`, `<label>: outdated ❌, bump PR opened: #123`,
+The outcome is posted to Slack on scheduled runs, and on manual runs whose own `notify` input is true
+(declare it as above). The Slack message reads `<label>: up to date ✅`, `<label>: outdated ❌, bump PR opened: #123`,
 and so on, the label linking to the run.
 
 | Input | Default | Description |
 | --- | --- | --- |
-| `label` | (required) | Name of the matrix in the Slack message. |
-| `notify` | `false` | Post the outcome to Slack. |
-| `slack_channel_id` | `""` | Slack channel, required when `notify` is true. |
+| `label` | `<repository name> version matrix` | Name of the matrix in the Slack message. |
+| `notify` | `true` | Post the outcome to Slack on scheduled runs and notifying manual runs, `false` to never post. |
+| `slack_channel_id` | `C04DS0SG599` | Slack channel the outcome is posted to. |
 | `scripts_dir` | `scripts/version-matrix` | Directory of the version matrix scripts. |
 | `python_version` | `3.13` | Python version used to run them. |
-| `check_timeout_minutes` | `10` | Timeout of the check job. |
+| `check_timeout_minutes` | `5` | Timeout of the check job. |
 | `skill_path` | `.claude/skills/update-version-matrix/SKILL.md` | Skill Claude follows to bump the pins. |
 | `kurtosis_version` | `1.23.0` | Kurtosis CLI installed for the bump job, empty to skip. |
 | `kurtosis_test_version` | `v0.0.11` | kurtosis-test release installed for the bump job, empty to skip. |
