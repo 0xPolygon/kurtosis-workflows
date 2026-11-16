@@ -84,15 +84,15 @@ Other inputs: `attempts` (3), `retry_delay` in seconds (5), `parallelism` (8) an
 
 Same registry authentication as `pull-images`. Pulls the Kurtosis engine, core and
 files-artifacts-expander images for the installed version, plus the helper images every Kurtosis
-engine needs (vector, traefik, ...), all from the mirror and tagged back to their original names.
-`images` / `images_file` add package-specific images (e.g. the genesis generator).
+engine needs (vector, traefik, the ethereum-package genesis generator, deployment-utils, ...), all
+from the mirror and tagged back to their original names. The genesis generator version follows the
+ethereum-package commit the Kurtosis packages pin: bump it with them. `images` / `images_file` add
+package-specific images.
 
 ```yaml
 - uses: 0xPolygon/kurtosis-workflows/.github/actions/pull-kurtosis-images@v0.1.6
   with:
     kurtosis_version: ${{ steps.kurtosis.outputs.version }}
-    images: |
-      ethpandaops/ethereum-genesis-generator:5.2.2
 ```
 
 `registry_prefix` defaults to the Polygon Artifact Registry mirror.
