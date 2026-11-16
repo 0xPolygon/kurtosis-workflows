@@ -1,0 +1,45 @@
+# Reusable unit tests of a Kurtosis package, run with kurtosis-test.
+name: unit
+
+on:
+  workflow_call:
+    inputs:
+      kurtosis_test_version:
+        description: kurtosis-test release (leovct/kurtosis-test) used to run the tests.
+        type: string
+        default: v0.0.11
+      path:
+        description: Path of the package to test.
+        type: string
+        default: .
+      timeout_minutes:
+        description: Timeout of the job.
+        type: number
+        default: 10
+
+permissions: {}
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # leovct/kurtosis-test is a maintained fork of ethereum-optimism/kurtosis-test, whose last
+      # release (v0.0.6) predates recent Kurtosis versions. Releases ship prebuilt binaries.
+      - name: Install kurtosis-test
+        env:
+          KURTOSIS_TEST_VERSION: ${{ inputs.kurtosis_test_version }}
+        run: |
+          curl -sSfL "https://github.com/leovct/kurtosis-test/releases/download/${KURTOSIS_TEST_VERSION}/kurtosis-test_Linux_x86_64.tar.gz" \
+            | sudo tar xz -C /usr/local/bin kurtosis-test
+
+      - name: Run unit tests
+        env:
+          TEST_PATH: ${{ inputs.path }}
+        run: kurtosis-test "${TEST_PATH}"

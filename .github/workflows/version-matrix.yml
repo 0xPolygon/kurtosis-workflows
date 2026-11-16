@@ -10,17 +10,19 @@ on:
   workflow_call:
     inputs:
       label:
-        description: Name of the matrix in the Slack message, e.g. "Kurtosis CDK version matrix".
-        type: string
-        required: true
-      notify:
-        description: Post the outcome to Slack. Callers usually pass `github.event_name == 'schedule' || inputs.notify`.
-        type: boolean
-        default: false
-      slack_channel_id:
-        description: Slack channel the outcome is posted to. Required when notify is true.
+        description: Name of the matrix in the Slack message, e.g. "Kurtosis CDK version matrix". Defaults to "<repository name> version matrix".
         type: string
         default: ""
+      notify:
+        description: >-
+          Post the outcome to Slack on scheduled runs, and on manual runs whose own `notify` input is
+          true. Set to false to never post.
+        type: boolean
+        default: true
+      slack_channel_id:
+        description: Slack channel the outcome is posted to.
+        type: string
+        default: C04DS0SG599
       scripts_dir:
         description: Directory holding requirements.txt, extract-versions.py and generate-markdown.py.
         type: string
@@ -32,7 +34,7 @@ on:
       check_timeout_minutes:
         description: Timeout of the check job.
         type: number
-        default: 10
+        default: 5
       skill_path:
         description: Skill Claude follows, in CI mode, to bump the drifted pins.
         type: string
@@ -332,7 +334,7 @@ jobs:
     needs:
       - check-version-matrix
       - bump-version-matrix
-    if: ${{ always() && inputs.notify }}
+    if: ${{ always() && inputs.notify && (github.event_name == 'schedule' || github.event.inputs.notify == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -344,7 +346,7 @@ jobs:
         id: message
         env:
           GH_TOKEN: ${{ github.token }}
-          LABEL: ${{ inputs.label }}
+          LABEL: ${{ inputs.label || format('{0} version matrix', github.event.repository.name) }}
           BASE_BRANCH: ${{ inputs.base_branch }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOBS_API: repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}/jobs
@@ -402,7 +404,7 @@ jobs:
           payload: |
             {
               "channel": ${{ toJSON(inputs.slack_channel_id) }},
-              "text": ${{ toJSON(inputs.label) }},
+              "text": ${{ toJSON(inputs.label || format('{0} version matrix', github.event.repository.name)) }},
               "blocks": [
                 {
                   "type": "section",
