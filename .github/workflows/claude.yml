@@ -53,6 +53,8 @@ jobs:
         with:
           ref: ${{ steps.pr.outputs.head_sha || github.sha }}
           fetch-depth: 1
+          # The job runs Claude on PR code: do not leave the token in .git/config.
+          persist-credentials: false
 
       - name: Run Claude Code
         uses: anthropics/claude-code-action@61a9c274fa7110a66dfafc1bbbced03833eb25fe # v1.0.269
