@@ -57,7 +57,7 @@ Authenticate to the registry first: the action only pulls. Images pulled through
 `registry_prefix` are tagged back to their original names (except digest-pinned ones).
 
 ```yaml
-- uses: google-github-actions/auth@v3.0.0
+- uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
   with:
     workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
     service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
