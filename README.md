@@ -261,7 +261,11 @@ jobs:
 - uses: 0xPolygon/kurtosis-workflows/.github/actions/verify-package-pins@v0.1.3
 ```
 
-Runs offline. The repository's own package (from `GITHUB_REPOSITORY`) is never required to be pinned.
+The repository's own package (from `GITHUB_REPOSITORY`) is never required to be pinned.
+
+Also fails when the `ethereum-genesis-generator` image listed by `pull-kurtosis-images` differs from
+the one the pinned `ethereum-package` commit uses (fetched from GitHub; a failed fetch only warns).
+A bump of `ethereum-package` therefore needs a matching `images.txt` update released here first.
 
 ### job-durations
 
