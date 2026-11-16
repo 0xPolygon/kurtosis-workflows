@@ -41,6 +41,10 @@ on:
         description: Kurtosis CLI installed for the bump job (for `kurtosis lint`). Leave empty to skip, e.g. when mise installs it.
         type: string
         default: ""
+      kurtosis_test_version:
+        description: kurtosis-test release (leovct/kurtosis-test, e.g. v0.0.11) installed for the bump job. Leave empty to skip, e.g. when mise installs it.
+        type: string
+        default: ""
       use_mise:
         description: Install the tools pinned in the repository's mise.toml (e.g. kurtosis, kurtosis-test) for the bump job.
         type: boolean
@@ -191,9 +195,25 @@ jobs:
           sudo apt install -y "kurtosis-cli=${KURTOSIS_VERSION}"
           kurtosis version
 
+      - name: Install kurtosis-test
+        if: inputs.kurtosis_test_version != ''
+        env:
+          KURTOSIS_TEST_VERSION: ${{ inputs.kurtosis_test_version }}
+        run: |
+          curl -sSfL "https://github.com/leovct/kurtosis-test/releases/download/${KURTOSIS_TEST_VERSION}/kurtosis-test_Linux_x86_64.tar.gz" \
+            | sudo tar xz -C /usr/local/bin kurtosis-test
+
       - name: Install mise tools
         if: inputs.use_mise
         uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+
+      # `kurtosis run --dry-run` needs the engine, which evaluates the package without pulling
+      # images or deploying anything.
+      - name: Start the kurtosis engine
+        if: inputs.kurtosis_version != '' || inputs.use_mise
+        run: |
+          kurtosis analytics disable
+          kurtosis engine start
 
       - name: Bump pins
         id: claude
@@ -209,11 +229,16 @@ jobs:
             for ${{ github.repository }}: regenerate the matrix to find the drift and bump
             what is behind. Return the PR title and body, or an empty title if
             nothing was bumped. List every drifted row in `bumped` or `skipped`.
+            Before returning, validate the bump when kurtosis is installed: run `kurtosis lint .`,
+            `kurtosis-test .` (if installed) and `kurtosis run --dry-run --enclave bump-check .`,
+            then fix the pins and rerun until all pass, or skip the bump that breaks them.
+            The dry run exits 0 even when it fails: read its output for
+            "Error encountered running Starlark code".
             Run each shell command as its own call, with no pipe, `;`, `&&`, `$(...)` or
             env prefix: compound commands are denied.
           claude_args: |
             --max-turns ${{ inputs.max_turns }}
-            --allowedTools "Read,Edit,Write,Grep,Glob,Bash(python3 ${{ inputs.scripts_dir }}/*),Bash(docker manifest inspect:*),Bash(git diff:*),Bash(git status:*),Bash(kurtosis lint:*)${{ inputs.extra_allowed_tools != '' && format(',{0}', inputs.extra_allowed_tools) || '' }}"
+            --allowedTools "Read,Edit,Write,Grep,Glob,Bash(python3 ${{ inputs.scripts_dir }}/*),Bash(docker manifest inspect:*),Bash(git diff:*),Bash(git status:*),Bash(kurtosis lint:*),Bash(kurtosis-test:*),Bash(kurtosis run --dry-run:*)${{ inputs.extra_allowed_tools != '' && format(',{0}', inputs.extra_allowed_tools) || '' }}"
             --json-schema '{"type":"object","properties":{"title":{"type":"string"},"body":{"type":"string"},"bumped":{"type":"array","items":{"type":"object","properties":{"component":{"type":"string","pattern":"^[A-Za-z0-9._/-]{1,64}$"},"from":{"type":"string","pattern":"^[A-Za-z0-9._+-]{1,64}$"},"to":{"type":"string","pattern":"^[A-Za-z0-9._+-]{1,64}$"}},"required":["component","from","to"],"additionalProperties":false}},"skipped":{"type":"array","items":{"type":"object","properties":{"component":{"type":"string","pattern":"^[A-Za-z0-9._/-]{1,64}$"},"from":{"type":"string","pattern":"^[A-Za-z0-9._+-]{1,64}$"},"to":{"type":"string","pattern":"^[A-Za-z0-9._+-]{1,64}$"},"reason":{"enum":["pinned","pre-release","unpublished","other"]}},"required":["component","from","to","reason"],"additionalProperties":false}}},"required":["title","body"]}'
 
       # A GitHub App token, unlike GITHUB_TOKEN, lets the PR trigger CI.
