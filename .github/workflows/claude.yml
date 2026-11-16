@@ -49,7 +49,7 @@ jobs:
             echo "head_sha=$(jq -r .head.sha <<<"$PR_JSON")" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ steps.pr.outputs.head_sha || github.sha }}
           fetch-depth: 1
