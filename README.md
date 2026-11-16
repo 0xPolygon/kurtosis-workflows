@@ -15,6 +15,7 @@ inputs. Defaults cover the common setup, so callers only override what differs.
 | --- | --- |
 | [`setup-kurtosis`](.github/actions/setup-kurtosis/action.yml) | Install the Kurtosis CLI and write its CI configuration. |
 | [`pull-images`](.github/actions/pull-images/action.yml) | Pre-pull Docker images in parallel with bounded retries, optionally from a registry mirror. |
+| [`verify-package-pins`](.github/actions/verify-package-pins/action.yml) | Check that external package versions are pinned only in the `replace` block of `kurtosis.yml`. |
 
 ## Workflows
 
@@ -23,6 +24,7 @@ inputs. Defaults cover the common setup, so callers only override what differs.
 | [`version-matrix`](.github/workflows/version-matrix.yml) | Check the version matrix, open or refresh a bump PR with Claude, post the outcome to Slack. |
 | [`claude`](.github/workflows/claude.yml) | Answer `@claude` mentions in issues and PRs, and submit PR reviews. |
 | [`lint`](.github/workflows/lint.yml) | Run `kurtosis lint`, rumdl, ruff, typos and shfmt, each as an opt-in job. |
+| [`unit`](.github/workflows/unit.yml) | Run the unit tests of a package with `kurtosis-test`. |
 | [`docs`](.github/workflows/docs.yml) | Build an npm website and optionally deploy it to GitHub Pages. |
 
 ## Templates
@@ -231,3 +233,28 @@ jobs:
 | `deploy` | `true` | Deploy on pushes to the default branch, `false` to only build. |
 | `build_timeout_minutes` | `10` | Timeout of the build job. |
 | `deploy_timeout_minutes` | `15` | Timeout of the deploy job. |
+
+### verify-package-pins
+
+```yaml
+- uses: actions/checkout@v7
+- uses: 0xPolygon/kurtosis-workflows/.github/actions/verify-package-pins@v0.1.3
+```
+
+Runs offline. The repository's own package (from `GITHUB_REPOSITORY`) is never required to be pinned.
+
+### unit
+
+```yaml
+jobs:
+  unit:
+    permissions:
+      contents: read
+    uses: 0xPolygon/kurtosis-workflows/.github/workflows/unit.yml@v0.1.3
+```
+
+| Input | Default | Description |
+| --- | --- | --- |
+| `kurtosis_test_version` | `v0.0.11` | kurtosis-test release. |
+| `path` | `.` | Path of the package to test. |
+| `timeout_minutes` | `10` | Timeout of the job. |

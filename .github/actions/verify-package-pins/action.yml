@@ -1,0 +1,13 @@
+name: verify-package-pins
+description: Check that external Kurtosis package versions are pinned only in the replace block of kurtosis.yml.
+
+runs:
+  using: composite
+  steps:
+    - name: Install pyyaml
+      shell: bash
+      run: pip install pyyaml
+
+    - name: Verify external package pins
+      shell: bash
+      run: python3 "${{ github.action_path }}/verify-package-pins.py"
