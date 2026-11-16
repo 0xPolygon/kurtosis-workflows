@@ -1,6 +1,6 @@
 # Reusable lint checks for Kurtosis packages. Each check is a separate job so that failures
 # are reported independently. The Kurtosis, markdown, typos and shfmt checks run by default, an
-# empty value (or `false`) turns a check off; the python check is enabled with `python_paths`.
+# empty value (or `false`) turns a check off; the python check only runs when the repository has Python files.
 name: lint
 
 on:
@@ -15,9 +15,9 @@ on:
         type: string
         default: .
       python_paths:
-        description: Paths checked by ruff, empty to skip the check.
+        description: Paths checked by ruff, empty to skip the check. The check is also skipped when the repository has no Python file.
         type: string
-        default: ""
+        default: .
       python_version:
         description: Python version used by the ruff check.
         type: string
@@ -92,11 +92,20 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+      - name: Detect Python files
+        id: detect
+        run: |
+          if [[ -n "$(git ls-files '*.py' | head -n 1)" ]]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.detect.outputs.found == 'true'
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ inputs.python_version }}
 
       - name: Run ruff
+        if: steps.detect.outputs.found == 'true'
         env:
           RUFF_VERSION: ${{ inputs.ruff_version }}
           PYTHON_PATHS: ${{ inputs.python_paths }}
