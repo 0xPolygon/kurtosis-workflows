@@ -38,13 +38,14 @@ jobs:
         if: github.event.pull_request || github.event.issue.pull_request
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         run: |
           set -euo pipefail
-          PR_JSON=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER")
+          PR_JSON=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}")
           echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
           echo "is_pr=true" >> "$GITHUB_OUTPUT"
-          if [ "$(jq -r '.head.repo.full_name // ""' <<<"$PR_JSON")" = "${{ github.repository }}" ]; then
+          if [ "$(jq -r '.head.repo.full_name // ""' <<<"$PR_JSON")" = "${REPO}" ]; then
             echo "head_sha=$(jq -r .head.sha <<<"$PR_JSON")" >> "$GITHUB_OUTPUT"
           fi
 
