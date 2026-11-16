@@ -1,0 +1,89 @@
+# Reusable build (and optional GitHub Pages deployment) of a Docusaurus-style npm website.
+name: docs
+
+on:
+  workflow_call:
+    inputs:
+      node_version:
+        description: Node.js version used to build the website.
+        type: string
+        required: true
+      docs_dir:
+        description: Directory of the website, holding package.json and package-lock.json.
+        type: string
+        default: docs
+      build_dir:
+        description: Build output directory, relative to docs_dir.
+        type: string
+        default: build
+      typecheck:
+        description: Run `npm run typecheck` before the build.
+        type: boolean
+        default: false
+      deploy:
+        description: Deploy the build to GitHub Pages.
+        type: boolean
+        default: false
+      build_timeout_minutes:
+        description: Timeout of the build job.
+        type: number
+        default: 10
+      deploy_timeout_minutes:
+        description: Timeout of the deploy job.
+        type: number
+        default: 15
+
+permissions: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.build_timeout_minutes }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: npm
+          cache-dependency-path: ${{ inputs.docs_dir }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ inputs.docs_dir }}
+        run: npm ci
+
+      - name: Typecheck
+        if: inputs.typecheck
+        working-directory: ${{ inputs.docs_dir }}
+        run: npm run typecheck
+
+      - name: Build website
+        working-directory: ${{ inputs.docs_dir }}
+        run: npm run build
+
+      - name: Upload build artifact
+        if: inputs.deploy
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ inputs.docs_dir }}/${{ inputs.build_dir }}
+
+  deploy:
+    if: inputs.deploy
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.deploy_timeout_minutes }}
+    permissions:
+      pages: write # deploy to Pages
+      id-token: write # verify the deployment originates from an appropriate source
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

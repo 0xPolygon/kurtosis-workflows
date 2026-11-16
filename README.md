@@ -22,6 +22,14 @@ passed as inputs.
 | --- | --- |
 | [`version-matrix`](.github/workflows/version-matrix.yml) | Check the version matrix, open or refresh a bump PR with Claude, post the outcome to Slack. |
 | [`claude`](.github/workflows/claude.yml) | Answer `@claude` mentions in issues and PRs, and submit PR reviews. |
+| [`lint`](.github/workflows/lint.yml) | Run `kurtosis lint`, rumdl, ruff, typos and shfmt, each as an opt-in job. |
+| [`docs`](.github/workflows/docs.yml) | Build an npm website and optionally deploy it to GitHub Pages. |
+
+## Templates
+
+| Template | Description |
+| --- | --- |
+| [`dependabot.yml`](templates/dependabot.yml) | Reference Dependabot configuration: one weekly PR for all ecosystems. |
 
 ## Usage
 
@@ -175,3 +183,43 @@ jobs:
 ```
 
 Input: `timeout_minutes` (15).
+
+### lint
+
+Each check runs only when its input is set, so a repository enables what it uses.
+
+```yaml
+jobs:
+  lint:
+    permissions:
+      contents: read
+    uses: 0xPolygon/kurtosis-workflows/.github/workflows/lint.yml@<sha>
+    with:
+      kurtosis_version: 1.23.0
+      markdown_paths: docs scripts
+      python_paths: scripts/version-matrix
+      typos: true
+      shfmt_version: 3.13.1
+```
+
+Other inputs: `python_version` (3.13), `ruff_version` (0.14.3) and `timeout_minutes` (5).
+
+### docs
+
+```yaml
+jobs:
+  docs:
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: 0xPolygon/kurtosis-workflows/.github/workflows/docs.yml@<sha>
+    with:
+      node_version: 24.22.1
+      typecheck: true
+      deploy: ${{ github.ref == 'refs/heads/main' }}
+```
+
+Other inputs: `docs_dir` (`docs`), `build_dir` (`build`, relative to `docs_dir`),
+`build_timeout_minutes` (10) and `deploy_timeout_minutes` (15). The deployment needs the `pages` and
+`id-token` permissions on the calling job.
