@@ -118,8 +118,9 @@ and so on, the label linking to the run.
 | `check_timeout_minutes` | `10` | Timeout of the check job. |
 | `skill_path` | `.claude/skills/update-version-matrix/SKILL.md` | Skill Claude follows to bump the pins. |
 | `kurtosis_version` | `""` | Kurtosis CLI installed for the bump job, empty to skip. |
+| `kurtosis_test_version` | `""` | kurtosis-test release installed for the bump job, empty to skip. |
 | `use_mise` | `false` | Install the tools of the repository's `mise.toml` for the bump job. |
-| `extra_allowed_tools` | `""` | Tools allowed to Claude on top of the default set, e.g. `Bash(kurtosis-test:*)`. |
+| `extra_allowed_tools` | `""` | Tools allowed to Claude on top of the default set (`kurtosis lint`, `kurtosis-test` and `kurtosis run --dry-run` included). |
 | `max_turns` | `60` | Maximum number of Claude turns. |
 | `bump_timeout_minutes` | `30` | Timeout of the bump job. |
 | `base_branch` | `main` | Branch the bump PR targets; bumps only run on it. |
