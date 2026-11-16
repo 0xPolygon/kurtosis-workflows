@@ -21,6 +21,7 @@ passed as inputs.
 | Workflow | Description |
 | --- | --- |
 | [`version-matrix`](.github/workflows/version-matrix.yml) | Check the version matrix, open or refresh a bump PR with Claude, post the outcome to Slack. |
+| [`claude`](.github/workflows/claude.yml) | Answer `@claude` mentions in issues and PRs, and submit PR reviews. |
 
 ## Usage
 
@@ -135,3 +136,42 @@ and so on, the label linking to the run.
 | `slack_bot_token` | Slack bot token, required when `notify` is true. |
 
 Outputs: `outdated`, `pr-operation`, `pr-url`.
+
+### claude
+
+The calling repository keeps the triggers and the concurrency group. Only human `OWNER`, `MEMBER` and
+`COLLABORATOR` accounts can trigger it, and fork heads are never checked out.
+
+```yaml
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened, assigned]
+
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  claude:
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: write
+      pull-requests: write
+    uses: 0xPolygon/kurtosis-workflows/.github/workflows/claude.yml@<sha>
+    secrets:
+      claude_api_key: ${{ secrets.CLAUDE_API_KEY }}
+```
+
+Input: `timeout_minutes` (15).
