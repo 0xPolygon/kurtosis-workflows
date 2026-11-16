@@ -181,13 +181,15 @@ jobs:
           SCRIPTS_DIR: ${{ inputs.scripts_dir }}
         run: pip install -r "${SCRIPTS_DIR}/requirements.txt"
 
-      # Pinned to a commit of this repository: a reusable workflow cannot reference its own
-      # actions with a local path, which would resolve against the caller's checkout.
       - name: Install kurtosis
         if: inputs.kurtosis_version != ''
-        uses: 0xPolygon/kurtosis-workflows/.github/actions/setup-kurtosis@801e725a21f3f2ee430115f0786e599ca29b0d19
-        with:
-          kurtosis_version: ${{ inputs.kurtosis_version }}
+        env:
+          KURTOSIS_VERSION: ${{ inputs.kurtosis_version }}
+        run: |
+          echo "deb [trusted=yes] https://sdk.kurtosis.com/kurtosis-cli-release-artifacts/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
+          sudo apt update
+          sudo apt install -y "kurtosis-cli=${KURTOSIS_VERSION}"
+          kurtosis version
 
       - name: Install mise tools
         if: inputs.use_mise
