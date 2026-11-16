@@ -1,0 +1,136 @@
+# Reusable lint checks for Kurtosis packages. Each check is a separate job so that failures
+# are reported independently; checks are enabled through inputs.
+name: lint
+
+on:
+  workflow_call:
+    inputs:
+      kurtosis_version:
+        description: Kurtosis CLI version used by `kurtosis lint`, empty to skip the check.
+        type: string
+        default: ""
+      markdown_paths:
+        description: Paths checked by rumdl, empty to skip the check.
+        type: string
+        default: ""
+      python_paths:
+        description: Paths checked by ruff, empty to skip the check.
+        type: string
+        default: ""
+      python_version:
+        description: Python version used by the ruff check.
+        type: string
+        default: "3.13"
+      ruff_version:
+        description: ruff release installed by the python check.
+        type: string
+        default: 0.14.3
+      typos:
+        description: Run typos.
+        type: boolean
+        default: false
+      shfmt_version:
+        description: shfmt release used to check shell formatting, empty to skip the check.
+        type: string
+        default: ""
+      timeout_minutes:
+        description: Timeout of each job.
+        type: number
+        default: 5
+
+permissions: {}
+
+jobs:
+  kurtosis:
+    if: inputs.kurtosis_version != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install kurtosis
+        env:
+          KURTOSIS_VERSION: ${{ inputs.kurtosis_version }}
+        run: |
+          echo "deb [trusted=yes] https://sdk.kurtosis.com/kurtosis-cli-release-artifacts/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
+          sudo apt update
+          sudo apt install -y "kurtosis-cli=${KURTOSIS_VERSION}"
+          kurtosis analytics disable
+
+      - name: Run kurtosis linter
+        run: kurtosis lint .
+
+  markdown:
+    if: inputs.markdown_paths != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run rumdl
+        uses: rvben/rumdl@a7a8434abe60f64239ea05624885f9bad66a1026 # v0.2.79
+        with:
+          path: ${{ inputs.markdown_paths }}
+
+  python:
+    if: inputs.python_paths != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Run ruff
+        env:
+          RUFF_VERSION: ${{ inputs.ruff_version }}
+          PYTHON_PATHS: ${{ inputs.python_paths }}
+        run: |
+          pip install "ruff==${RUFF_VERSION}"
+          read -ra paths <<< "${PYTHON_PATHS}"
+          ruff check "${paths[@]}"
+
+  typos:
+    if: inputs.typos
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: crate-ci/typos@7f9d0819ca1c008ade73f4b41fa9d258d48f605b # v1.51.1
+
+  shfmt:
+    if: inputs.shfmt_version != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: mfinelli/setup-shfmt@a25fda4c1fe115aec0f85e04126610841bc3141d # v4.0.1
+        with:
+          shfmt-version: ${{ inputs.shfmt_version }}
+
+      - name: Run shfmt
+        run: shfmt -d .

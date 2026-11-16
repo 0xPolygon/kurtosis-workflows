@@ -1,0 +1,42 @@
+# Reference Dependabot configuration for the Kurtosis repositories. Dependabot cannot share a
+# configuration across repositories: copy this file to .github/dependabot.yml and keep only the
+# ecosystems the repository uses, with their directories. Everything lands in a single weekly PR.
+version: 2
+
+multi-ecosystem-groups:
+  all-deps:
+    schedule:
+      interval: weekly
+
+updates:
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /.github/actions/*
+    patterns:
+      - "*"
+    multi-ecosystem-group: all-deps
+
+  - package-ecosystem: docker
+    directory: /docker
+    patterns:
+      - "*"
+    multi-ecosystem-group: all-deps
+
+  - package-ecosystem: npm
+    directory: /docs
+    patterns:
+      - "*"
+    multi-ecosystem-group: all-deps
+
+  - package-ecosystem: gomod
+    directory: /tools/example
+    patterns:
+      - "*"
+    multi-ecosystem-group: all-deps
+
+  - package-ecosystem: pip
+    directory: /scripts/version-matrix
+    patterns:
+      - "*"
+    multi-ecosystem-group: all-deps
