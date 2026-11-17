@@ -10,3 +10,8 @@ updates:
       github-actions:
         patterns:
           - "*"
+
+  - package-ecosystem: pip
+    directory: /.github/actions/verify-package-pins
+    schedule:
+      interval: weekly

@@ -6,7 +6,7 @@ runs:
   steps:
     - name: Install pyyaml
       shell: bash
-      run: pip install pyyaml
+      run: pip install -r "${GITHUB_ACTION_PATH}/requirements.txt"
 
     - name: Verify external package pins
       shell: bash
