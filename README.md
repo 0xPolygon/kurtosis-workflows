@@ -26,7 +26,7 @@ inputs. Defaults cover the common setup, so callers only override what differs.
 | --- | --- |
 | [`version-matrix`](.github/workflows/version-matrix.yml) | Check the version matrix, open or refresh a bump PR with Claude, post the outcome to Slack. |
 | [`claude`](.github/workflows/claude.yml) | Answer `@claude` mentions in issues and PRs, and submit PR reviews. |
-| [`lint`](.github/workflows/lint.yml) | Run `kurtosis lint`, rumdl, ruff, typos and shfmt, each as an opt-in job. |
+| [`lint`](.github/workflows/lint.yml) | Run `kurtosis lint`, rumdl, ruff, typos and shfmt, each as a separate job that an input turns off. |
 | [`unit`](.github/workflows/unit.yml) | Run the unit tests of a package with `kurtosis-test`. |
 | [`workflow-summary`](.github/workflows/workflow-summary.yml) | Post a one-line Slack recap of a run, linking the failed jobs. |
 | [`docs`](.github/workflows/docs.yml) | Build an npm website and optionally deploy it to GitHub Pages. |
@@ -96,7 +96,8 @@ package-specific images.
     kurtosis_version: ${{ steps.kurtosis.outputs.version }}
 ```
 
-`registry_prefix` defaults to the Polygon Artifact Registry mirror.
+`registry_prefix` defaults to the Polygon Artifact Registry mirror. `skip_present` (false) skips
+images already loaded, e.g. from a cache.
 
 ### version-matrix
 
@@ -259,6 +260,8 @@ jobs:
 
 ```yaml
 - uses: actions/checkout@v7
+  with:
+    persist-credentials: false
 - uses: 0xPolygon/kurtosis-workflows/.github/actions/verify-package-pins@v0.1.5
 ```
 
@@ -268,6 +271,8 @@ The repository's own package (from `GITHUB_REPOSITORY`) is never required to be 
 
 ```yaml
 - uses: actions/checkout@v7
+  with:
+    persist-credentials: false
 - uses: 0xPolygon/kurtosis-workflows/.github/actions/verify-images@v0.1.5
 ```
 
@@ -283,7 +288,8 @@ therefore needs a matching `images.txt` update released here first.
 - uses: 0xPolygon/kurtosis-workflows/.github/actions/job-durations@v0.1.5
 ```
 
-The calling job needs `actions: read`.
+The calling job needs `actions: read`. Input: `github_token` (the workflow token), used to list the
+run's jobs.
 
 ### unit
 
