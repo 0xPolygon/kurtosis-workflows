@@ -176,7 +176,10 @@ jobs:
       pr-operation: ${{ steps.pr.outputs.pull-request-operation }}
       pr-url: ${{ steps.find-pr.outputs.url }}
     steps:
+      # create-pull-request sets up its own credentials from the app token.
       - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@v7.1.0
         with:
